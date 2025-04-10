@@ -37,6 +37,7 @@ const computeLock = require('../providers/caching/memory')({ defaultTtlSeconds: 
 const currentSchema = '1.7.0'
 
 const weights = { declared: 30, discovered: 25, consistency: 15, spdx: 15, texts: 15, date: 30, source: 70 }
+const definitionCacheTTLInSeconds = 60 * 60 * 24 * 2
 
 class DefinitionService {
   constructor(harvestStore, harvestService, summary, aggregator, curation, store, search, cache, upgradeHandler) {
@@ -103,7 +104,7 @@ class DefinitionService {
     return await this.getStored(coordinates)
   }
 
-  async _setDefinitionInCache(cacheKey, itemToStore) {
+  async _setDefinitionInCache(cacheKey, itemToStore, cacheTTLInSeconds = definitionCacheTTLInSeconds) {
     // 1000 is a magic number here -- we don't want to cache very large definitions, as it can impact redis ops
     if (itemToStore.files && itemToStore.files.length > 1000) {
       this.logger.debug('Skipping caching for key', { coordinates: itemToStore.coordinates.toString() })
@@ -111,7 +112,7 @@ class DefinitionService {
     }
 
     // TTL for two days, in seconds
-    await this.cache.set(cacheKey, itemToStore, 60 * 60 * 24 * 2)
+    await this.cache.set(cacheKey, itemToStore, cacheTTLInSeconds)
   }
 
   _trimDefinition(definition, expand) {
@@ -254,12 +255,19 @@ class DefinitionService {
       // Log line used for /status page insights
       this.logger.info('definition not available', { coordinates: coordinates.toString() })
       this._harvest(coordinates) // fire and forget
+      // cache to avoid re-computing for the same coordinates, but don't need to wait for it
+      this._cacheDefinition(definition, definitionCacheTTLInSeconds / 2)
       return definition
     }
     // Log line used for /status page insights
     this.logger.info('recomputed definition available', { coordinates: coordinates.toString() })
     await this._store(definition)
     return definition
+  }
+
+  async _cacheDefinition(definition, cacheTTLInSeconds) {
+    const cacheKey = this._getCacheKey(definition.coordinates)
+    await this._setDefinitionInCache(cacheKey, definition, cacheTTLInSeconds)
   }
 
   async _harvest(coordinates) {
@@ -277,7 +285,7 @@ class DefinitionService {
 
   async _store(definition) {
     await this.definitionStore.store(definition)
-    await this._setDefinitionInCache(this._getCacheKey(definition.coordinates), definition)
+    await this._cacheDefinition(definition)
   }
 
   /**
