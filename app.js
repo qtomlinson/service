@@ -61,11 +61,16 @@ function createApp(config) {
   const upgradeHandler = config.upgrade.service({ queue: config.upgrade.queue })
   initializers.push(async () => upgradeHandler.initialize())
 
+  const computeService = require('./business/computeService')(
+    harvestStore,
+    summaryService,
+    aggregatorService,
+    curationService
+  )
   const definitionService = require('./business/definitionService')(
     harvestStore,
     harvestService,
-    summaryService,
-    aggregatorService,
+    computeService,
     curationService,
     definitionStore,
     searchService,

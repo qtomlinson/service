@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 const { expect } = require('chai')
-const DefinitionService = require('../../business/definitionService')
+const ComputeService = require('../../business/computeService')
 const { setIfValue } = require('../../lib/utils')
 const { set } = require('lodash')
 
-describe('Definition Service Scoring', () => {
+describe('Compute Definition Service Scoring', () => {
   it('computes simple score', () => {
     const definition = createDefinition('MIT')
     const service = createService()
@@ -153,7 +153,7 @@ describe('Definition Service Scoring', () => {
 })
 
 function createService() {
-  return DefinitionService()
+  return ComputeService()
 }
 
 function createDefinition(declared, files) {
