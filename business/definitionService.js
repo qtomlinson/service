@@ -78,11 +78,17 @@ class DefinitionService {
     if (result) {
       // Log line used for /status page insights
       this.logger.info('computed definition available', { coordinates: coordinates.toString() })
-    } else if (!force && (await this.harvestService.isTracked(coordinates))) {
+    } else result = await this._computeDefinition(force, coordinates)
+    return this._trimDefinition(this._cast(result), expand)
+  }
+
+  async _computeDefinition(force, coordinates) {
+    if (force) return await this.computeAndStore(coordinates)
+    if (await this.harvestService.isTracked(coordinates)) {
       this.logger.info('definition harvest in progress', { coordinates: coordinates.toString() })
       return this._computePlaceHolder(coordinates)
-    } else result = force ? await this.computeAndStore(coordinates) : await this.computeStoreAndCurate(coordinates)
-    return this._trimDefinition(this._cast(result), expand)
+    }
+    return await this.computeStoreAndCurate(coordinates)
   }
 
   /**
